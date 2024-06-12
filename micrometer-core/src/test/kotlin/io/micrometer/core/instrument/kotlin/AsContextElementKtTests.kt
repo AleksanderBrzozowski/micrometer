@@ -19,7 +19,13 @@ package io.micrometer.core.instrument.kotlin
 import io.micrometer.context.ContextRegistry
 import io.micrometer.observation.Observation
 import io.micrometer.observation.ObservationRegistry
-import kotlinx.coroutines.*
+import io.micrometer.observation.ObservationTextPublisher
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.assertj.core.api.BDDAssertions.then
 import org.junit.jupiter.api.Test
 
@@ -60,5 +66,27 @@ internal class AsContextElementKtTests {
 
         then(element.currentObservation()).isSameAs(nextObservation)
         inScope.close()
+    }
+
+    @Test
+    fun `bar`() {
+        observationRegistry.observationConfig().observationHandler(ObservationTextPublisher())
+        val parentObs = Observation.start("parent", observationRegistry)
+        val parentScope = parentObs.openScope()
+        val asContextElement = observationRegistry.asContextElement()
+
+        runBlocking(asContextElement) {
+            launch {
+                val childObs = Observation.start("child", observationRegistry)
+                val childScope = childObs
+                    .openScope()
+                delay(1)
+                childScope.close()
+                childObs.stop()
+            }
+        }
+
+        parentScope.close()
+        parentObs.stop()
     }
 }

@@ -43,4 +43,6 @@
     <logger name="org.springframework" level="warn"/>
 
     <logger name="org.eclipse.jetty" level="error"/>
+
+    <logger name="io.micrometer.observation.contextpropagation" level="trace"/>
 </configuration>

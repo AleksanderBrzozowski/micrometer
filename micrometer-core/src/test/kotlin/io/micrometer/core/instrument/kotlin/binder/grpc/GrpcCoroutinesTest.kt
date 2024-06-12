@@ -32,6 +32,8 @@ import io.micrometer.core.instrument.kotlin.ObservationCoroutineContextServerInt
 import io.micrometer.observation.Observation
 import io.micrometer.observation.ObservationRegistry
 import io.micrometer.observation.ObservationTextPublisher
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.newSingleThreadContext
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -87,8 +89,13 @@ class GrpcCoroutinesTest {
             responseType = SimpleResponse::class,
             methodType = MethodDescriptor.MethodType.UNARY,
         )
-        fun unaryRpc(request: SimpleRequest): SimpleResponse {
+        suspend fun unaryRpc(request: SimpleRequest): SimpleResponse {
             lastObservation = observationRegistry.currentObservation
+            val obs = Observation.start("test", observationRegistry)
+            val scope = obs.openScope()
+            delay(1)
+            scope.close()
+            obs.stop()
             return SimpleResponse.newBuilder()
                 .setResponseMessage(request.getRequestMessage())
                 .build()
@@ -98,7 +105,7 @@ class GrpcCoroutinesTest {
             return ServerServiceDefinition.builder(SimpleServiceGrpc.SERVICE_NAME)
                 .addMethod(
                     ServerCalls.unaryServerMethodDefinition(
-                        context = context,
+                        context = context + newSingleThreadContext("single-thread"),
                         descriptor = SimpleServiceGrpc.getUnaryRpcMethod(),
                         implementation = ::unaryRpc,
                     ),
